@@ -1,0 +1,39 @@
+---
+- hosts: root@192.168.1.43
+  become: yes
+  vars_files:
+  - env_variables
+  tasks:
+  - name: Pulling images required for setting up a Kubernetes cluster
+    shell: kubeadm config images pull
+
+  - name: Initialize Kubernetis cluster
+    shell: kubeadm init --pod-network-cidr=10.244.0.0/16 >> cluster_initialized.txt
+    args:
+      chdir: $HOME
+      creates: cluster_initialized.txt
+    
+  - name: Pause
+    pause:
+      minutes: 1
+
+  - name: Create directory
+    file:
+      path: $HOME/.kube
+      state: directory
+      mode: 0755
+      owner: root
+
+  - name: Copy files 
+    copy:
+      src: /etc/kubernetes/admin.conf
+      dest: /root/.kube/config
+      remote_src: yes
+      owner: root
+   
+  - name: install Pod network
+    shell: kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+    args:
+      chdir: $HOME
+      creates: pod_network_setup.txt
+
